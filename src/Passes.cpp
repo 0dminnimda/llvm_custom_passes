@@ -30,6 +30,7 @@ struct ArgPrintPass : PassInfoMixin<ArgPrintPass> {
     static bool isRequired(void) { return true; }
 
     auto run(Function &f, FunctionAnalysisManager &) {
+        outs() << "\n[ArgPrint]\n";
         outs() << "Function name: " << f.getName() << "\n";
         outs() << "    # of arguments: " << f.arg_size() << "\n";
 
@@ -135,6 +136,7 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
     }
 
     auto run(Function &f, FunctionAnalysisManager &) {
+        outs() << "\n[RPOPrint]\n";
         outs() << "Function: " << f.getName() << "\n\n";
 
         index_blocks(f);
