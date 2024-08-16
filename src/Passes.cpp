@@ -41,7 +41,7 @@ struct ArgPrintPass : PassInfoMixin<ArgPrintPass> {
 const auto MAX_INSTRUCTIONS = 3;
 
 struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
-    DenseMap<BasicBlock *, u32> block_ids;  // TODO: Replace by llvm/IR/ValueMap.h
+    DenseMap<BasicBlock *, u32> block_ids;  // XXX:? Replace by llvm/IR/ValueMap.h
     Array<BasicBlock *> blocks;  // XXX:? llvm/ADT/TinyPtrVector.h
 
     static bool isRequired(void) { return true; }
