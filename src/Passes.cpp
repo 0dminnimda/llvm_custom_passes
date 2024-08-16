@@ -38,6 +38,8 @@ struct ArgPrintPass : PassInfoMixin<ArgPrintPass> {
     }
 };
 
+const auto MAX_INSTRUCTIONS = 3;
+
 struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
     DenseMap<BasicBlock *, u32> block_ids;  // TODO: Replace by llvm/IR/ValueMap.h
     Array<BasicBlock *> blocks;  // XXX:? llvm/ADT/TinyPtrVector.h
@@ -56,10 +58,15 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
 
     auto print_indexing() {
         for (auto [id, bb] : enumerate(blocks)) {
-            outs() << "Basic block " << id << ": " << bb->getName() << "\n";
+            outs() << "Basic block " << id << ": '" << bb->getName() << "'\n";
 
-            for (auto &instr : *bb) {
-                outs() << instr << "\n";
+            auto close_to_end = bb->size() - MAX_INSTRUCTIONS;
+            for (auto [i, instr] : enumerate(*bb)) {
+                if (i < MAX_INSTRUCTIONS || i >= close_to_end) {
+                    outs() << instr << "\n";
+                } else if (i == MAX_INSTRUCTIONS) {
+                    outs() << "  ..." << "\n";
+                }
             }
             outs() << "\n";
         }
