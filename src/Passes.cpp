@@ -166,6 +166,37 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
     }
 };
 
+struct InstructionCounterPass : PassInfoMixin<InstructionCounterPass> {
+    StringMap<u32> counts;
+
+    static bool isRequired(void) { return true; }
+
+    auto count(Function &f) {
+        counts.clear();
+        for (auto &bb : f) {
+            for (auto &instr : bb) {
+                counts[instr.getOpcodeName()] += 1;
+            }
+        }
+    }
+
+    auto print() {
+        for (auto &[name, count] : counts) {
+            outs() << "  " << name << ": " << count << "\n";
+        }
+    }
+
+    auto run(Function &f, FunctionAnalysisManager &) {
+        outs() << "\n[InstrCount]\n";
+        outs() << "Function " << f.getName() << "():\n";
+
+        count(f);
+        print();
+
+        return PreservedAnalyses::all();
+    }
+};
+
 } /*namespace*/
 
 auto register_passes(StringRef pass_name, FunctionPassManager &FPM, ...) {
@@ -175,6 +206,10 @@ auto register_passes(StringRef pass_name, FunctionPassManager &FPM, ...) {
     }
     if (pass_name == "RPOPrint") {
         FPM.addPass(RPOPrintPass());
+        return true;
+    }
+    if (pass_name == "InstrCount") {
+        FPM.addPass(InstructionCounterPass());
         return true;
     }
     return false;
