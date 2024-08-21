@@ -12,6 +12,9 @@ if(NOT LLVM_ENABLE_RTTI)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 endif()
 
+# Can also be an option
+# add_library(CustomPasses SHARED src/Passes.cpp)
+
 add_library(CustomPasses MODULE src/Passes.cpp)
 
 target_link_libraries(CustomPasses LLVM)
