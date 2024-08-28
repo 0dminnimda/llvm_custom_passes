@@ -29,10 +29,10 @@ namespace {
 struct ArgPrintPass : PassInfoMixin<ArgPrintPass> {
     static bool isRequired(void) { return true; }
 
-    auto run(Function &f, FunctionAnalysisManager &) {
+    auto run(Function &func, FunctionAnalysisManager &) {
         outs() << "\n[ArgPrint]\n";
-        outs() << "Function name: " << f.getName() << "\n";
-        outs() << "    # of arguments: " << f.arg_size() << "\n";
+        outs() << "Function name: " << func.getName() << "\n";
+        outs() << "    # of arguments: " << func.arg_size() << "\n";
 
         return PreservedAnalyses::all();
     }
@@ -46,11 +46,11 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
 
     static bool isRequired(void) { return true; }
 
-    auto index_blocks(Function &f) {
+    auto index_blocks(Function &func) {
         blocks.clear();
-        blocks.resize_for_overwrite(f.size());
+        blocks.resize_for_overwrite(func.size());
         // block_ids.clear();  // This can potentially do memory reallocations, so just leave it as is
-        for (auto [id, bb] : enumerate(f)) {
+        for (auto [id, bb] : enumerate(func)) {
             blocks[id] = &bb;
             block_ids[&bb] = id;
         }
@@ -72,7 +72,7 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
         }
     }
 
-    auto calculate_rpo(Function &f, u32 root, Array<u32> &ordering, Array<std::tuple<u32, u32>> &back_edges) {
+    auto calculate_rpo(Function &func, u32 root, Array<u32> &ordering, Array<std::tuple<u32, u32>> &back_edges) {
         typedef enum {
             RPO_NEW,
             RPO_WAIT,
@@ -80,7 +80,7 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
             RPO_DONE,
         } RPO_State;
 
-        u64 length = f.size();
+        u64 length = func.size();
 
         ordering.reserve(length);
 
@@ -142,17 +142,17 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
         std::reverse(std::begin(ordering), std::end(ordering));
     }
 
-    auto run(Function &f, FunctionAnalysisManager &) {
+    auto run(Function &func, FunctionAnalysisManager &) {
         outs() << "\n[RPOPrint]\n";
-        outs() << "Function: " << f.getName() << "\n\n";
+        outs() << "Function: " << func.getName() << "\n\n";
 
-        index_blocks(f);
+        index_blocks(func);
 
         print_indexing();
 
         Array<u32> ordering;
         Array<std::tuple<u32, u32>> back_edges;
-        calculate_rpo(f, std::distance(f.begin(), f.getEntryBlock().getIterator()), ordering, back_edges);
+        calculate_rpo(func, std::distance(func.begin(), func.getEntryBlock().getIterator()), ordering, back_edges);
         outs() << "RPO: ";
         for (auto id : ordering) {
             outs() << id << " ";
@@ -171,9 +171,9 @@ struct InstructionCounterPass : PassInfoMixin<InstructionCounterPass> {
 
     static bool isRequired(void) { return true; }
 
-    auto count(Function &f) {
+    auto count(Function &func) {
         counts.clear();
-        for (auto &bb : f) {
+        for (auto &bb : func) {
             for (auto &instr : bb) {
                 counts[instr.getOpcodeName()] += 1;
             }
