@@ -199,6 +199,142 @@ struct InstructionCounterPass : PassInfoMixin<InstructionCounterPass> {
     }
 };
 
+
+struct TripCountPass : PassInfoMixin<TripCountPass> {
+    static bool isRequired(void) { return true; }
+
+    auto run(Function &func, FunctionAnalysisManager &AM) {
+        outs() << "\n[TripCount]\n";
+        outs() << "Function " << func.getName() << "():\n";
+
+        auto &SE = AM.getResult<ScalarEvolutionAnalysis>(func);
+        auto &LA = AM.getResult<LoopAnalysis>(func);
+
+        for (const Loop *loop : LA) {
+            // auto *header = loop->getHeader();
+            const SCEV *trip_count = SE.getBackedgeTakenCount(loop);
+            trip_count->print(outs());
+            outs() << "\n";
+            if (const auto *C = dyn_cast<const SCEVConstant>(trip_count)) {
+                auto count = C->getValue()->getZExtValue();
+                outs() << "Loop at " << loop->getName() << "': Trip count = " << count << "\n";
+            } else {
+                outs() << "Loop at " << loop->getName() << "': Unable to compute trip count\n";
+            }
+        }
+
+        return PreservedAnalyses::all();
+    }
+};
+
+struct InductionsPass : PassInfoMixin<InductionsPass> {
+    static bool isRequired(void) { return true; }
+
+    auto run(Function &func, FunctionAnalysisManager &AM) {
+        outs() << "\n[Inductions]\n";
+        outs() << "Function " << func.getName() << "():\n";
+
+        auto &SE = AM.getResult<ScalarEvolutionAnalysis>(func);
+        auto &LA = AM.getResult<LoopAnalysis>(func);
+
+        for (const Loop *loop : LA) {
+            // loop->setLoopPreheader();
+            outs() << "Loop at " << *loop->getHeader()->getFirstNonPHI() << ":\n";
+
+            for (PHINode &phi : loop->getHeader()->phis()) {
+                // Check if the PHI node is an induction variable.
+                if (!(SE.isSCEVable(phi.getType()) && SE.getSCEV(&phi)->getSCEVType() == scAddRecExpr)) continue;
+
+                const SCEVAddRecExpr *AR = cast<SCEVAddRecExpr>(SE.getSCEV(&phi));
+
+                outs() << "  Induction variable: " << phi << "\n";
+
+                // Get the start value of the induction variable.
+                const SCEV *Start = AR->getStart();
+                outs() << "    Start: " << *Start << " = ";
+                if (auto *ConstStart = dyn_cast<SCEVConstant>(Start)) {
+                  outs() << ConstStart->getValue()->getSExtValue() << "\n";
+                } else {
+                  outs() << "Not a constant\n";
+                }
+
+                // Get the step value of the induction variable.
+                const SCEV *Step = AR->getStepRecurrence(SE);
+                outs() << "    Step: " << *Step << " = ";
+                if (auto *ConstStep = dyn_cast<SCEVConstant>(Step)) {
+                  outs() << ConstStep->getValue()->getSExtValue() << "\n";
+                } else {
+                  outs() << "Not a constant\n";
+                }
+
+                // You can also get the trip count of the loop if it's known:
+                if (const SCEVConstant *TripCount = dyn_cast_or_null<SCEVConstant>(SE.getBackedgeTakenCount(loop))) {
+                  outs() << "    Trip count: " << TripCount->getValue()->getSExtValue() << "\n";
+                } else {
+                  outs() << "    Trip count: Unknown\n";
+                }
+            }
+        }
+
+        return PreservedAnalyses::all();
+    }
+};
+
+
+struct LoopPass : PassInfoMixin<LoopPass> {
+    static bool isRequired(void) { return true; }
+
+    auto run(Function &func, FunctionAnalysisManager &AM) {
+        outs() << "\n[Loop]\n";
+        outs() << "Function " << func.getName() << "():\n";
+
+        auto &SE = AM.getResult<ScalarEvolutionAnalysis>(func);
+        auto &LA = AM.getResult<LoopAnalysis>(func);
+
+        for (Loop *loop : LA) {
+            printLoopHierarchy(loop, 0, SE);
+        }
+
+        return PreservedAnalyses::all();
+    }
+
+    void printLoopHierarchy(Loop *loop, int depth, ScalarEvolution &SE) {
+        outs().indent(depth * 2) << "<loop at depth " << depth;
+
+        InductionDescriptor induction;
+        if (loop->getInductionDescriptor(SE, induction)) {
+            outs() << "; induction = " << induction.getStep();
+        } else {
+            outs() << "; induction is unknown";
+        }
+
+        PHINode *induction_var = loop->getInductionVariable(SE);
+        if (induction_var) {
+            outs() << "; induction_var" << *induction_var;
+        } else {
+            outs() << "; no induction_var";
+        }
+
+        auto bounds = loop->getBounds(SE);
+
+        if (bounds) {
+            outs() << "; yes bounds";
+        } else {
+            outs() << "; no bounds";
+        }
+
+        outs() << "> {\n";
+
+        // bool isLoopSimplifyForm() const;
+
+        for (Loop *sub_loop : loop->getSubLoops()) {
+            printLoopHierarchy(sub_loop, depth + 1, SE);
+        }
+
+        outs().indent(depth * 2) << "}\n";
+    }
+};
+
 } /*namespace*/
 
 auto register_passes(StringRef pass_name, FunctionPassManager &FPM, ...) {
@@ -212,6 +348,18 @@ auto register_passes(StringRef pass_name, FunctionPassManager &FPM, ...) {
     }
     if (pass_name == "InstrCount") {
         FPM.addPass(InstructionCounterPass());
+        return true;
+    }
+    if (pass_name == "TripCount") {
+        FPM.addPass(TripCountPass());
+        return true;
+    }
+    if (pass_name == "Inductions") {
+        FPM.addPass(InductionsPass());
+        return true;
+    }
+    if (pass_name == "Loop") {
+        FPM.addPass(LoopPass());
         return true;
     }
     return false;
