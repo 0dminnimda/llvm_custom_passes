@@ -15,7 +15,7 @@ endif()
 # Can also be an option
 # add_library(CustomPasses SHARED src/Passes.cpp)
 
-add_library(CustomPasses MODULE src/Passes.cpp)
+add_library(CustomPasses MODULE src/Passes.cpp src/LoopFuse.cpp)
 
 target_link_libraries(CustomPasses LLVM)
 

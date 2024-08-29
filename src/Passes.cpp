@@ -2,6 +2,8 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "LoopFuse.hpp"
+
 /* Signed numbers */
 typedef int8_t s8;
 typedef int16_t s16;
@@ -222,6 +224,7 @@ PassPluginLibraryInfo get_plugin_info(void) {
         "0.0.0",
         [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(register_passes);
+            PB.registerPipelineParsingCallback(register_fuse_pass);
         }
     };
 }
