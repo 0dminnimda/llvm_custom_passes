@@ -188,11 +188,11 @@ struct InstructionCounterPass : PassInfoMixin<InstructionCounterPass> {
         }
     }
 
-    auto run(Function &f, FunctionAnalysisManager &) {
+    auto run(Function &func, FunctionAnalysisManager &) {
         outs() << "\n[InstrCount]\n";
-        outs() << "Function " << f.getName() << "():\n";
+        outs() << "Function " << func.getName() << "():\n";
 
-        count(f);
+        count(func);
         print();
 
         return PreservedAnalyses::all();
@@ -369,7 +369,7 @@ PassPluginLibraryInfo get_plugin_info(void) {
     return {
         LLVM_PLUGIN_API_VERSION,
         "CustomPasses",
-        "0.0.0",
+        "v0.1",
         [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(register_passes);
             PB.registerPipelineParsingCallback(register_fuse_pass);
