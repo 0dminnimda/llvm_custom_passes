@@ -32,9 +32,9 @@ struct ArgPrintPass : PassInfoMixin<ArgPrintPass> {
     static bool isRequired(void) { return true; }
 
     auto run(Function &func, FunctionAnalysisManager &) {
-        outs() << "\n[ArgPrint]\n";
-        outs() << "Function name: " << func.getName() << "\n";
-        outs() << "    # of arguments: " << func.arg_size() << "\n";
+        dbgs() << "\n[ArgPrint]\n";
+        dbgs() << "Function name: " << func.getName() << "\n";
+        dbgs() << "    # of arguments: " << func.arg_size() << "\n";
 
         return PreservedAnalyses::all();
     }
@@ -60,17 +60,17 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
 
     auto print_indexing() {
         for (auto [id, bb] : enumerate(blocks)) {
-            outs() << "Basic block " << id << ": '" << bb->getName() << "'\n";
+            dbgs() << "Basic block " << id << ": '" << bb->getName() << "'\n";
 
             auto close_to_end = bb->size() - MAX_INSTRUCTIONS;
             for (auto [i, instr] : enumerate(*bb)) {
                 if (i < MAX_INSTRUCTIONS || i >= close_to_end) {
-                    outs() << instr << "\n";
+                    dbgs() << instr << "\n";
                 } else if (i == MAX_INSTRUCTIONS) {
-                    outs() << "  ..." << "\n";
+                    dbgs() << "  ..." << "\n";
                 }
             }
-            outs() << "\n";
+            dbgs() << "\n";
         }
     }
 
@@ -145,8 +145,8 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
     }
 
     auto run(Function &func, FunctionAnalysisManager &) {
-        outs() << "\n[RPOPrint]\n";
-        outs() << "Function: " << func.getName() << "\n\n";
+        dbgs() << "\n[RPOPrint]\n";
+        dbgs() << "Function: " << func.getName() << "\n\n";
 
         index_blocks(func);
 
@@ -155,13 +155,13 @@ struct RPOPrintPass : PassInfoMixin<RPOPrintPass> {
         Array<u32> ordering;
         Array<std::tuple<u32, u32>> back_edges;
         calculate_rpo(func, std::distance(func.begin(), func.getEntryBlock().getIterator()), ordering, back_edges);
-        outs() << "RPO: ";
+        dbgs() << "RPO: ";
         for (auto id : ordering) {
-            outs() << id << " ";
+            dbgs() << id << " ";
         }
-        outs() << "\n";
+        dbgs() << "\n";
         for (auto [src, dst] : back_edges) {
-            outs() << "Back edge:" << dst << "<-" << src << "\n";
+            dbgs() << "Back edge:" << dst << "<-" << src << "\n";
         }
 
         return PreservedAnalyses::all();
@@ -184,13 +184,13 @@ struct InstructionCounterPass : PassInfoMixin<InstructionCounterPass> {
 
     auto print() {
         for (auto &[name, count] : counts) {
-            outs() << "  " << name << ": " << count << "\n";
+            dbgs() << "  " << name << ": " << count << "\n";
         }
     }
 
     auto run(Function &func, FunctionAnalysisManager &) {
-        outs() << "\n[InstrCount]\n";
-        outs() << "Function " << func.getName() << "():\n";
+        dbgs() << "\n[InstrCount]\n";
+        dbgs() << "Function " << func.getName() << "():\n";
 
         count(func);
         print();
@@ -204,8 +204,8 @@ struct TripCountPass : PassInfoMixin<TripCountPass> {
     static bool isRequired(void) { return true; }
 
     auto run(Function &func, FunctionAnalysisManager &AM) {
-        outs() << "\n[TripCount]\n";
-        outs() << "Function " << func.getName() << "():\n";
+        dbgs() << "\n[TripCount]\n";
+        dbgs() << "Function " << func.getName() << "():\n";
 
         auto &SE = AM.getResult<ScalarEvolutionAnalysis>(func);
         auto &LA = AM.getResult<LoopAnalysis>(func);
@@ -213,13 +213,13 @@ struct TripCountPass : PassInfoMixin<TripCountPass> {
         for (const Loop *loop : LA) {
             // auto *header = loop->getHeader();
             const SCEV *trip_count = SE.getBackedgeTakenCount(loop);
-            trip_count->print(outs());
-            outs() << "\n";
+            trip_count->print(dbgs());
+            dbgs() << "\n";
             if (const auto *C = dyn_cast<const SCEVConstant>(trip_count)) {
                 auto count = C->getValue()->getZExtValue();
-                outs() << "Loop at " << loop->getName() << "': Trip count = " << count << "\n";
+                dbgs() << "Loop at " << loop->getName() << "': Trip count = " << count << "\n";
             } else {
-                outs() << "Loop at " << loop->getName() << "': Unable to compute trip count\n";
+                dbgs() << "Loop at " << loop->getName() << "': Unable to compute trip count\n";
             }
         }
 
@@ -231,15 +231,15 @@ struct InductionsPass : PassInfoMixin<InductionsPass> {
     static bool isRequired(void) { return true; }
 
     auto run(Function &func, FunctionAnalysisManager &AM) {
-        outs() << "\n[Inductions]\n";
-        outs() << "Function " << func.getName() << "():\n";
+        dbgs() << "\n[Inductions]\n";
+        dbgs() << "Function " << func.getName() << "():\n";
 
         auto &SE = AM.getResult<ScalarEvolutionAnalysis>(func);
         auto &LA = AM.getResult<LoopAnalysis>(func);
 
         for (const Loop *loop : LA) {
             // loop->setLoopPreheader();
-            outs() << "Loop at " << *loop->getHeader()->getFirstNonPHI() << ":\n";
+            dbgs() << "Loop at " << *loop->getHeader()->getFirstNonPHI() << ":\n";
 
             for (PHINode &phi : loop->getHeader()->phis()) {
                 // Check if the PHI node is an induction variable.
@@ -247,31 +247,31 @@ struct InductionsPass : PassInfoMixin<InductionsPass> {
 
                 const SCEVAddRecExpr *AR = cast<SCEVAddRecExpr>(SE.getSCEV(&phi));
 
-                outs() << "  Induction variable: " << phi << "\n";
+                dbgs() << "  Induction variable: " << phi << "\n";
 
                 // Get the start value of the induction variable.
                 const SCEV *Start = AR->getStart();
-                outs() << "    Start: " << *Start << " = ";
+                dbgs() << "    Start: " << *Start << " = ";
                 if (auto *ConstStart = dyn_cast<SCEVConstant>(Start)) {
-                  outs() << ConstStart->getValue()->getSExtValue() << "\n";
+                  dbgs() << ConstStart->getValue()->getSExtValue() << "\n";
                 } else {
-                  outs() << "Not a constant\n";
+                  dbgs() << "Not a constant\n";
                 }
 
                 // Get the step value of the induction variable.
                 const SCEV *Step = AR->getStepRecurrence(SE);
-                outs() << "    Step: " << *Step << " = ";
+                dbgs() << "    Step: " << *Step << " = ";
                 if (auto *ConstStep = dyn_cast<SCEVConstant>(Step)) {
-                  outs() << ConstStep->getValue()->getSExtValue() << "\n";
+                  dbgs() << ConstStep->getValue()->getSExtValue() << "\n";
                 } else {
-                  outs() << "Not a constant\n";
+                  dbgs() << "Not a constant\n";
                 }
 
                 // You can also get the trip count of the loop if it's known:
                 if (const SCEVConstant *TripCount = dyn_cast_or_null<SCEVConstant>(SE.getBackedgeTakenCount(loop))) {
-                  outs() << "    Trip count: " << TripCount->getValue()->getSExtValue() << "\n";
+                  dbgs() << "    Trip count: " << TripCount->getValue()->getSExtValue() << "\n";
                 } else {
-                  outs() << "    Trip count: Unknown\n";
+                  dbgs() << "    Trip count: Unknown\n";
                 }
             }
         }
@@ -285,8 +285,8 @@ struct LoopPass : PassInfoMixin<LoopPass> {
     static bool isRequired(void) { return true; }
 
     auto run(Function &func, FunctionAnalysisManager &AM) {
-        outs() << "\n[Loop]\n";
-        outs() << "Function " << func.getName() << "():\n";
+        dbgs() << "\n[Loop]\n";
+        dbgs() << "Function " << func.getName() << "():\n";
 
         auto &SE = AM.getResult<ScalarEvolutionAnalysis>(func);
         auto &LA = AM.getResult<LoopAnalysis>(func);
@@ -299,31 +299,31 @@ struct LoopPass : PassInfoMixin<LoopPass> {
     }
 
     void printLoopHierarchy(Loop *loop, int depth, ScalarEvolution &SE) {
-        outs().indent(depth * 2) << "<loop at depth " << depth;
+        dbgs().indent(depth * 2) << "<loop at depth " << depth;
 
         InductionDescriptor induction;
         if (loop->getInductionDescriptor(SE, induction)) {
-            outs() << "; induction = " << induction.getStep();
+            dbgs() << "; induction = " << induction.getStep();
         } else {
-            outs() << "; induction is unknown";
+            dbgs() << "; induction is unknown";
         }
 
         PHINode *induction_var = loop->getInductionVariable(SE);
         if (induction_var) {
-            outs() << "; induction_var" << *induction_var;
+            dbgs() << "; induction_var" << *induction_var;
         } else {
-            outs() << "; no induction_var";
+            dbgs() << "; no induction_var";
         }
 
         auto bounds = loop->getBounds(SE);
 
         if (bounds) {
-            outs() << "; yes bounds";
+            dbgs() << "; yes bounds";
         } else {
-            outs() << "; no bounds";
+            dbgs() << "; no bounds";
         }
 
-        outs() << "> {\n";
+        dbgs() << "> {\n";
 
         // bool isLoopSimplifyForm() const;
 
@@ -331,7 +331,7 @@ struct LoopPass : PassInfoMixin<LoopPass> {
             printLoopHierarchy(sub_loop, depth + 1, SE);
         }
 
-        outs().indent(depth * 2) << "}\n";
+        dbgs().indent(depth * 2) << "}\n";
     }
 };
 
